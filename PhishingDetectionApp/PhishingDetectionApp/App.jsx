@@ -5,13 +5,14 @@ import { extractFeatures } from './urlFeatureExtractor'; // Adjust the path as n
 
 const App = () => {
   const [sms, setSms] = useState('');
-  const [links,setlinks]=useState('');
-  const [url, setUrl] = useState('');
+  const [links, setLinks] = useState([]); // Changed to an array
   const [features, setFeatures] = useState([]);
-  const handleExtractFeatures = () => {
+
+  const handleExtractFeatures = (url) => {
     const extractedFeatures = extractFeatures(url);
     setFeatures(extractedFeatures);
   };
+
   const requestSMSPermission = async () => {
     try {
       const granted = await PermissionsAndroid.requestMultiple([
@@ -34,37 +35,42 @@ const App = () => {
     }
   };
 
-useEffect(() => {
-  requestSMSPermission();
+  useEffect(() => {
+    requestSMSPermission();
 
-  // Add SMS Listener with try-catch to handle errors
-  try {
-    const subscription = SmsListener.addListener(message => {
-      console.log('SMS listener triggered'); // Log when listener is triggered
-      console.log(`Received SMS: ${message.body}`); // Log the received SMS message
-      setSms(message.body); // Set the SMS in state
-      const extractedLinks = extractLinks(message.body); // Extract URLs
-        setlinks(extractedLinks); 
-        setUrl(extractedLinks);
-        handleExtractFeatures();
-    });
+    // Add SMS Listener with try-catch to handle errors
+    try {
+      const subscription = SmsListener.addListener(message => {
+        console.log('SMS listener triggered'); // Log when listener is triggered
+        console.log(`Received SMS: ${message.body}`); // Log the received SMS message
+        setSms(message.body); // Set the SMS in state
+        const extractedLinks = extractLinks(message.body); // Extract URLs
+        setLinks(extractedLinks); 
+        
+        // Iterate through extracted links to extract features for each
+        extractedLinks.forEach(link => {
+          handleExtractFeatures(link);
+        });
+      });
 
-    return () => {
-      subscription.remove();
-    };
-  } catch (error) {
-    console.error('Error in SMS listener:', error);
-    Alert.alert('Error', 'Something went wrong while receiving the SMS.');
-  }
-}, []);
-const extractLinks = (message) => {
-  const urlRegex = /(https?:\/\/[^\s]+)/g; // Regular expression to match URLs
-  return message.match(urlRegex) || []; // Return the matched URLs or an empty array
-};
+      return () => {
+        subscription.remove();
+      };
+    } catch (error) {
+      console.error('Error in SMS listener:', error);
+      Alert.alert('Error', 'Something went wrong while receiving the SMS.');
+    }
+  }, []);
+
+  const extractLinks = (message) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g; // Regular expression to match URLs
+    return message.match(urlRegex) || []; // Return the matched URLs or an empty array
+  };
+
   return (
     <View style={styles.container}>
       <Text>Received SMS: {sms}</Text>
-      <Text>links: {links}</Text>
+      <Text>Links: {links.join(', ')}</Text> 
       <Text style={styles.title}>Extracted Features:</Text>
       {features.length > 0 && (
         <Text>{JSON.stringify(features)}</Text>
